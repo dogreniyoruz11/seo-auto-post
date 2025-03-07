@@ -31,7 +31,10 @@ else:
 
 # ------------------- FETCH TRENDING KEYWORDS -------------------
 def fetch_trending_keywords():
-    pytrends = TrendReq(hl='en-US', tz=360, retries=3, backoff_factor=0.1)
+    from requests.adapters import Retry
+
+pytrends = TrendReq(hl='en-US', tz=360, retries=Retry(total=3, backoff_factor=0.1, allowed_methods=None))
+
     keyword_groups = [
         ["SEO", "keyword research", "Google SEO", "ranking on Google"],
         ["YouTube SEO", "rank YouTube videos", "YouTube algorithm", "video SEO"],
@@ -156,7 +159,7 @@ def post_to_wordpress(title, summary, content, topic):
     {hashtags}<br>
     """
 
-    api_url = f"{WP_URL}/wp-json/wp/v2/posts"
+    api_url = f"{WP_URL.rstrip('/')}/wp-json/wp/v2/posts"
     headers = {"Content-Type": "application/json"}
     post_data = {
         "title": title,
