@@ -69,11 +69,14 @@ def fetch_trending_keywords():
             time.sleep(2)  # Avoid Google Trends rate limits
             trends = pytrends.related_queries()
 
-            if trends and isinstance(trends, dict):
+            # ✅ Fix: Ensure `trends` exists and has valid data before accessing it
+            if trends:
                 for kw in group:
-                    if kw in trends and trends[kw] and 'top' in trends[kw] and trends[kw]['top'] is not None:
-                        queries = trends[kw]['top']['query'].tolist()
-                        trending_keywords.extend(queries)
+                    if kw in trends and trends[kw] and isinstance(trends[kw], dict):
+                        if 'top' in trends[kw] and trends[kw]['top'] is not None:
+                            if 'query' in trends[kw]['top']:
+                                queries = trends[kw]['top']['query'].tolist()
+                                trending_keywords.extend(queries)
 
         except Exception as e:
             print(f"⚠️ Google Trends API Error for {group}: {e}")
@@ -86,6 +89,7 @@ def fetch_trending_keywords():
         ]
 
     return trending_keywords[:10]  # Return top 10 results
+
 
 # ------------------- AI ARTICLE GENERATION -------------------
 def generate_article(topic):
