@@ -18,16 +18,15 @@ UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 
-# Check if all necessary environment variables are set
 if not all([WP_URL, WP_USERNAME, WP_APP_PASSWORD]):
     raise ValueError("❌ Missing required environment variables. Check WP_URL, WP_USERNAME, WP_APP_PASSWORD.")
 
 # ------------------- TRENDING TOPICS FROM GOOGLE -------------------
 def get_trending_topics():
-    """Fetches trending topics from Google Trends using PyTrends API."""
+    """Fetch trending topics from Google Trends."""
     try:
         print("🔍 Fetching trending topics from Google Trends...")
-        pytrends = TrendReq()
+        pytrends = TrendReq(hl='en-US', tz=360)
         keyword_groups = [
             ["SEO", "keyword research", "Google SEO", "ranking on Google"],
             ["YouTube SEO", "rank YouTube videos", "YouTube algorithm", "video SEO"],
@@ -40,10 +39,11 @@ def get_trending_topics():
 
         trending_topics = []
         for group in keyword_groups:
-            pytrends.build_payload(group, timeframe='now 7-d')
+            time.sleep(5)  # Prevents IP bans
+            pytrends.build_payload(group, timeframe='now 7-d', geo='US')
             trends = pytrends.related_queries()
 
-            if not trends or trends == {}:  
+            if not trends or trends == {}:
                 continue  
 
             for kw in group:
@@ -61,7 +61,7 @@ def get_trending_topics():
         return topic
 
     except Exception as e:
-        print(f"❌ Error fetching trending topics: {e}")
+        print(f"❌ Google Trends failed (Possible ban or API issue): {e}")
         return "SEO Best Practices"
 
 # -------------------- AI ARTICLE GENERATION --------------------
@@ -88,7 +88,7 @@ def generate_article(topic):
                 max_tokens=1500
             )
 
-            content = response['choices'][0]['message']['content']
+            content = response["choices"][0]["message"]["content"]
             print("✅ Article generated successfully with OpenAI.")
             return content
 
@@ -108,7 +108,7 @@ def generate_article(topic):
 
 # --------------------- MULTIPLE IMAGE SOURCES ---------------------
 def get_image(query):
-    """Fetches a relevant image from Unsplash, Pexels, or Pixabay."""
+    """Fetches an image from Unsplash, Pexels, or Pixabay."""
     for source, url in {
         "Unsplash": f"https://api.unsplash.com/photos/random?query={query}&client_id={UNSPLASH_ACCESS_KEY}",
         "Pexels": f"https://api.pexels.com/v1/search?query={query}&per_page=1",
@@ -120,11 +120,11 @@ def get_image(query):
             if response.status_code == 200:
                 data = response.json()
                 if source == "Unsplash":
-                    return data['urls']['regular']
-                elif source == "Pexels" and data.get('photos'):
-                    return data['photos'][0]['src']['original']
-                elif source == "Pixabay" and data.get('hits'):
-                    return data['hits'][0]['largeImageURL']
+                    return data["urls"]["regular"]
+                elif source == "Pexels" and data.get("photos"):
+                    return data["photos"][0]["src"]["original"]
+                elif source == "Pixabay" and data.get("hits"):
+                    return data["hits"][0]["largeImageURL"]
         except Exception as e:
             print(f"⚠️ {source} Image Fetch Failed: {e}")
     return f"https://source.unsplash.com/1200x800/?{query}"
@@ -139,8 +139,8 @@ def post_to_wordpress(title, content, image_url):
             "title": title,
             "content": f"<img src='{image_url}' alt='{title}'/><br>{content}<br><br><strong>🚀 Explore our powerful SEO tools at <a href='https://seotoolfusion.com'>SEO Tool Fusion</a>!</strong>",
             "status": "publish",
-            "categories": [1, 2, 3],  # Update with actual category IDs
-            "tags": [10, 20, 30]  # Update with actual tag IDs
+            "categories": [1, 2, 3],
+            "tags": [10, 20, 30]
         }
 
         response = requests.post(WP_URL, json=post, auth=credentials)
@@ -161,7 +161,7 @@ def auto_post():
     post_to_wordpress(trending_topic, content, image_url)
 
 # ------------------------ SCHEDULE TASK ------------------------
-schedule.every(2).hours.do(auto_post)
+schedule.every(10).seconds.do(auto_post)  # Reduced frequency to avoid bans
 print("🚀 Ultimate Auto Article Poster is running...")
 
 while True:
