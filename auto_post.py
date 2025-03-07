@@ -21,6 +21,7 @@ PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")  # Pixabay API Key
 openai.api_key = OPENAI_API_KEY
 
 # ------------------- TRENDING KEYWORDS DISCOVERY -------------------
+
 def fetch_trending_keywords():
     """Fetch trending keywords from Google Trends while handling empty responses."""
     pytrends = TrendReq()
@@ -33,28 +34,34 @@ def fetch_trending_keywords():
         ["content marketing tips", "blogging tips"],
         ["eCommerce marketing", "affiliate marketing strategies"]
     ]
-    
+
     trending_keywords = []
-    
+
     for group in keyword_groups:
         try:
             pytrends.build_payload(group, timeframe='now 7-d')
+            time.sleep(2)  # Avoid request blocking
+
             trends = pytrends.related_queries()
-            
-            for kw in group:
-                # Check if data exists to prevent errors
-                if kw in trends and trends[kw] and trends[kw]['top'] is not None:
-                    queries = trends[kw]['top']['query'].tolist()
-                    trending_keywords.extend(queries)
-                    
+
+            if trends:
+                for kw in group:
+                    if kw in trends and trends[kw] and trends[kw]['top'] is not None:
+                        queries = trends[kw]['top']['query'].tolist()
+                        trending_keywords.extend(queries)
+
         except Exception as e:
             print(f"⚠️ Error fetching trends for {group}: {e}")
-    
+
     if not trending_keywords:
         print("❌ No trending keywords found. Using fallback default keywords.")
-        trending_keywords = ["SEO strategies", "Google ranking tips", "YouTube video SEO", "AI marketing automation"]
+        trending_keywords = [
+            "SEO strategies", "Google ranking tips", "YouTube video SEO", 
+            "AI marketing automation", "content marketing growth", "best affiliate marketing methods"
+        ]
 
     return trending_keywords[:10]  # Return top 10 results
+
 
 
 # ------------------- AI-BASED HIDDEN KEYWORDS -------------------
