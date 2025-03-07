@@ -2,6 +2,7 @@ import os
 import random
 import requests
 import openai
+import json
 import time  # Import time for delay
 from pytrends.request import TrendReq
 from PIL import Image
@@ -129,6 +130,7 @@ def generate_hashtags(topic):
 
 
 # --------------------- AUTO POST TO WORDPRESS ---------------------
+
 def post_to_wordpress(title, summary, content, topic):
     credentials = requests.auth._basic_auth_str(WP_USERNAME, WP_APP_PASSWORD)
     image_url = fetch_and_compress_image(topic)
@@ -152,13 +154,26 @@ def post_to_wordpress(title, summary, content, topic):
     {social_share_buttons}
     """
 
-    post = {
+    post_data = {
         "title": title,
         "content": full_content,
         "status": "publish"
     }
 
-    response = requests.post(WP_URL, json=post, headers={"Authorization": credentials})
+    headers = {
+        "Authorization": f"Basic {credentials}",
+        "Content-Type": "application/json"
+    }
+
+    response = requests.post(f"{WP_URL}/wp-json/wp/v2/posts", json=post_data, headers=headers)
+
+    if response.status_code == 201:
+        print(f"✅ Successfully posted: {title}")
+    else:
+        print(f"❌ Failed to post: {title}")
+        print(f"⚠️ HTTP Status Code: {response.status_code}")
+        print(f"⚠️ Response Content: {response.text}")  # Print the API response for debugging
+
     return response.status_code == 201
 
 
