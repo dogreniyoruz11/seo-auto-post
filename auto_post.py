@@ -48,7 +48,8 @@ def fetch_trending_keywords():
             time.sleep(2)  # Avoid Google Trends rate limits
             trends = pytrends.related_queries()
 
-            if trends:
+            # Ensure `trends` contains data before accessing it
+            if trends and isinstance(trends, dict):
                 for kw in group:
                     if kw in trends and trends[kw] and 'top' in trends[kw] and trends[kw]['top'] is not None:
                         queries = trends[kw]['top']['query'].tolist()
@@ -68,8 +69,9 @@ def fetch_trending_keywords():
 
 
 
-
 # ------------------- AI-BASED HIDDEN KEYWORDS -------------------
+
+import google.generativeai as genai
 
 def discover_unmined_keywords(topic):
     """Tries OpenAI first. If OpenAI fails, switches to Google Gemini AI."""
@@ -84,7 +86,7 @@ def discover_unmined_keywords(topic):
         )
         return response.choices[0].message.content.split("\n")
     
-    except openai.error.OpenAIError as e:
+    except (openai.RateLimitError, openai.APIConnectionError, openai.AuthenticationError) as e:
         print(f"⚠️ OpenAI Failed: {e}. Switching to Google Gemini AI.")
 
         # Use Gemini as fallback
@@ -92,6 +94,7 @@ def discover_unmined_keywords(topic):
         response = model.generate_content(prompt)
 
         return response.text.split("\n")
+
 
 
 
@@ -120,7 +123,7 @@ def generate_article(topic):
 
         return summary, content
 
-    except openai.error.OpenAIError as e:
+    except (openai.RateLimitError, openai.APIConnectionError, openai.AuthenticationError) as e:
         print(f"⚠️ OpenAI Failed: {e}. Switching to Google Gemini AI.")
 
         model = genai.GenerativeModel("gemini-pro")
@@ -134,6 +137,7 @@ def generate_article(topic):
         content = content_response.text.strip()
 
         return summary, content
+
 
 
 
@@ -177,7 +181,7 @@ def generate_hashtags(topic):
         )
         return response.choices[0].message.content.strip()
     
-    except openai.error.OpenAIError as e:
+    except (openai.RateLimitError, openai.APIConnectionError, openai.AuthenticationError) as e:
         print(f"⚠️ OpenAI Failed: {e}. Switching to Google Gemini AI.")
         
         model = genai.GenerativeModel("gemini-pro")
