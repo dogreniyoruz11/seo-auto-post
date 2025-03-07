@@ -50,10 +50,10 @@ def generate_with_openai(prompt):
         return None
 
 
-# ------------------- TRENDING KEYWORDS DISCOVERY -------------------
+# ------------------- FIXED: TRENDING KEYWORDS DISCOVERY -------------------
 def fetch_trending_keywords():
     """Fetch trending keywords from Google Trends while handling empty responses safely."""
-    pytrends = TrendReq()
+    pytrends = TrendReq(hl='en-US', tz=360)  # ✅ Added proper language and timezone settings
     keyword_groups = [
         ["SEO", "keyword research", "Google SEO", "ranking on Google"],
         ["YouTube SEO", "rank YouTube videos", "YouTube algorithm", "video SEO"],
@@ -67,15 +67,15 @@ def fetch_trending_keywords():
     trending_keywords = []
     for group in keyword_groups:
         try:
-            pytrends.build_payload(group, timeframe='now 7-d')
+            pytrends.build_payload(group, timeframe='now 7-d', geo='US')  # ✅ Use USA region
             time.sleep(2)  # Avoid Google Trends rate limits
             trends = pytrends.related_queries()
 
             if trends:
                 for kw in group:
-                    if kw in trends and trends[kw] and isinstance(trends[kw], dict):
-                        top_queries = trends[kw].get('top', None)
-                        if top_queries is not None and 'query' in top_queries:
+                    if kw in trends and isinstance(trends[kw], dict):
+                        top_queries = trends[kw].get('top')
+                        if isinstance(top_queries, dict) and 'query' in top_queries:
                             queries = top_queries['query'].tolist()
                             trending_keywords.extend(queries)
         except Exception as e:
