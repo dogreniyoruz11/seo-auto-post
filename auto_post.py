@@ -21,34 +21,6 @@ PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 if not all([WP_URL, WP_USERNAME, WP_APP_PASSWORD]):
     raise ValueError("❌ Missing required environment variables. Check WP_URL, WP_USERNAME, WP_APP_PASSWORD.")
 
-
-
-
-def test_google_trends():
-    try:
-        pytrends = TrendReq()
-        pytrends.build_payload(["SEO"], timeframe='now 7-d')
-        trends = pytrends.related_queries()
-
-        print("📊 Google Trends Data:")
-        print(trends)
-
-        if not trends or trends == {}:
-            print("⚠️ Google may be blocking Railway's IP!")
-        else:
-            print("✅ Google Trends is working fine!")
-
-    except Exception as e:
-        print(f"❌ Error: {e}")
-
-# Run the test
-test_google_trends()
-
-
-
-
-
-
 # ------------------- TRENDING TOPICS FROM GOOGLE -------------------
 def get_trending_topics():
     try:
@@ -103,18 +75,16 @@ def generate_article(topic):
             - Bullet points and numbered lists for clarity
             - Conclusion with a strong Call-to-Action encouraging readers to explore powerful SEO tools at seotoolfusion.com
             """
-            
+
             response = openai.chat.completions.create(
-             model="gpt-4-turbo",
-             messages=[{"role": "user", "content": prompt}],
-             max_tokens=1500
-        )
-
-
+                model="gpt-4-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=1500
             )
-            content = response["choices"][0]["message"]["content"]
+            content = response.choices[0].message.content  # Correct response format
             print("✅ Article generated successfully with OpenAI.")
             return content
+
     except Exception as e:
         print(f"⚠️ OpenAI failed: {e}. Trying Gemini...")
         
@@ -176,7 +146,6 @@ def post_to_wordpress(title, content, image_url):
     except Exception as e:
         print(f"❌ Error posting to WordPress: {e}")
 
-
 # --------------------- MAIN AUTO POST FUNCTION ---------------------
 def auto_post():
     trending_topic = get_trending_topics()
@@ -185,7 +154,7 @@ def auto_post():
     post_to_wordpress(trending_topic, content, image_url)
 
 # ------------------------ SCHEDULE TASK ------------------------
-schedule.every(10).seconds.do(auto_post)
+schedule.every(10).minutes.do(auto_post)
 print("🚀 Ultimate Auto Article Poster is running...")
 
 while True:
