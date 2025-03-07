@@ -22,6 +22,7 @@ GOOGLE_GEMINI_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
 # ✅ Configure APIs
 openai.api_key = OPENAI_API_KEY
@@ -30,86 +31,60 @@ if GOOGLE_GEMINI_API_KEY:
 else:
     print("❌ WARNING: GOOGLE_GEMINI_API_KEY is missing!")
 
-# ------------------- FETCH SEO-OPTIMIZED KEYWORDS -------------------
-def fetch_trending_keywords():
-    pytrends = TrendReq(hl='en-US', tz=360, retries=Retry(total=3, backoff_factor=0.1, allowed_methods=None))
-    keyword_groups = [
-        ["SEO", "keyword research", "Google SEO", "ranking on Google"],
-        ["YouTube SEO", "rank YouTube videos", "YouTube algorithm", "video SEO"],
-        ["digital marketing", "social media marketing", "content marketing", "online marketing"],
-        ["AI marketing", "automation marketing", "AI tools"],
-        ["SEO tools", "online marketing tools reviews"],
-        ["content marketing tips", "blogging tips"],
-        ["eCommerce marketing", "affiliate marketing strategies"]
-    ]
-    
-    trending_keywords = []
-    for group in keyword_groups:
-        try:
-            pytrends.build_payload(group, timeframe='now 7-d', geo='US')
-            time.sleep(2)
-            trends = pytrends.related_queries()
-            if trends:
-                for kw in group:
-                    if trends.get(kw) and isinstance(trends[kw], dict):
-                        top_queries = trends[kw].get('top')
-                        if isinstance(top_queries, dict) and 'query' in top_queries:
-                            queries = top_queries['query'].tolist()
-                            trending_keywords.extend(queries)
-        except Exception as e:
-            print(f"⚠️ Google Trends API Error: {e}")
-    
-    return trending_keywords[:10] if trending_keywords else generate_unmined_keywords()
-
-# ------------------- AI-BASED UNMINED KEYWORDS -------------------
-def generate_unmined_keywords():
-    prompt = "Generate 10 untapped, high-traffic, zero-competition SEO-related keywords."
+# -------------------- GENERATE AI SUMMARY --------------------
+def generate_ai_summary(content):
+    summary_prompt = f"Summarize the following blog content in 3-4 concise sentences:\n{content}"
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=200
-        )
-        return response["choices"][0]["message"]["content"].split("\n")
-    except:
-        return ["SEO growth hacks", "hidden SEO tricks", "Google ranking loopholes"]
-
-# -------------------- AI ARTICLE GENERATION --------------------
-def generate_article(topic):
-    summary_prompt = f"Generate a 3-4 sentence summary of an article about '{topic}'."
-    content_prompt = f"Write a 1500-2000 word engaging SEO-optimized article on '{topic}'. Include a Table of Contents."
-    
-    try:
-        summary = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
             messages=[{"role": "user", "content": summary_prompt}],
             max_tokens=100
-        )["choices"][0]["message"]["content"]
-
-        content = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
-            messages=[{"role": "user", "content": content_prompt}],
-            max_tokens=3000
-        )["choices"][0]["message"]["content"]
-
-        return summary, content
+        )
+        return response["choices"][0]["message"]["content"]
     except:
-        print("⚠️ OpenAI Failed. Switching to Google Gemini AI.")
-        try:
-            model = genai.GenerativeModel("gemini-1.5-pro-latest")
-            summary_response = model.generate_content(summary_prompt)
-            content_response = model.generate_content(content_prompt)
-            return summary_response.text.strip(), content_response.text.strip()
-        except:
-            print("❌ AI Failed: Skipping article generation.")
-            return None, None
+        return "Summary not available."
+
+# -------------------- FORMAT ARTICLE CONTENT --------------------
+def format_article(title, summary, content, video_embed, hashtags, images):
+    ai_summary = generate_ai_summary(content)
+    formatted_content = f"""
+    <h1>{title}</h1>
+    <h2>Summary</h2>
+    <p><strong>{ai_summary}</strong></p>
+    {''.join([f'<img src="{img}" alt="{title}" style="max-width:100%; height:auto;"/><br>' for img in images])}
+    <h2>Table of Contents</h2>
+    <ul>
+        <li><a href="#introduction">Introduction</a></li>
+        <li><a href="#main-content">Main Content</a></li>
+        <li><a href="#conclusion">Conclusion</a></li>
+    </ul>
+    <h2 id="introduction">Introduction</h2>
+    <p>{content[:300]}</p>
+    <h2 id="main-content">Main Content</h2>
+    <p>{content[300:]}</p>
+    <h2 id="conclusion">Conclusion</h2>
+    <p>In conclusion, this article covered {title} and provided key insights...</p>
+    <h2>Watch Related Video</h2>
+    {video_embed}
+    <h2>Popular Hashtags</h2>
+    <p>{hashtags}</p>
+    <h2>Share This Post</h2>
+    <a href="https://www.facebook.com/sharer/sharer.php?u={WP_URL}">Share on Facebook</a> | 
+    <a href="https://twitter.com/intent/tweet?url={WP_URL}&text={title}">Share on Twitter</a> | 
+    <a href="https://www.linkedin.com/sharing/share-offsite/?url={WP_URL}">Share on LinkedIn</a>
+    """
+    return formatted_content
 
 # --------------------- AUTO POST TO WORDPRESS ---------------------
 def post_to_wordpress(title, summary, content, topic):
     credentials = HTTPBasicAuth(WP_USERNAME, WP_APP_PASSWORD)
+    video_embed = fetch_youtube_video(topic)
+    images = fetch_images(topic, count=5)
+    hashtags = generate_hashtags(topic)
+    formatted_content = format_article(title, summary, content, video_embed, hashtags, images)
     api_url = f"{WP_URL.rstrip('/')}/wp-json/wp/v2/posts"
     headers = {"Content-Type": "application/json"}
-    post_data = {"title": title, "content": f"<h2>Summary</h2><p>{summary}</p><br>{content}", "status": "publish"}
+    post_data = {"title": title, "content": formatted_content, "status": "publish"}
     
     response = requests.post(api_url, json=post_data, headers=headers, auth=credentials)
     if response.status_code == 201:
