@@ -21,26 +21,6 @@ PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 if not all([WP_URL, WP_USERNAME, WP_APP_PASSWORD]):
     raise ValueError("❌ Missing required environment variables. Check WP_URL, WP_USERNAME, WP_APP_PASSWORD.")
 
-
-
-# Debug Google Trends API response
-trending_topic = get_trending_topics()
-print(f"🔍 Selected Topic: {trending_topic}")
-
-# Debug AI-generated article
-content = generate_article(trending_topic)
-print(f"📝 Generated Content: {content}")
-
-# Debug Image Fetching
-image_url = get_image(trending_topic)
-print(f"🖼️ Selected Image: {image_url}")
-
-# Debug WordPress API request
-print(f"🚀 Posting to WordPress:\nTitle: {trending_topic}\nContent: {content}\nImage: {image_url}")
-
-
-
-
 # ------------------- TRENDING TOPICS FROM GOOGLE -------------------
 def get_trending_topics():
     try:
@@ -60,7 +40,7 @@ def get_trending_topics():
             pytrends.build_payload(group, timeframe='now 7-d')
             trends = pytrends.related_queries()
 
-            if not trends or trends == {}:  # If empty, skip
+            if not trends or trends == {}:
                 continue  
 
             for kw in group:
@@ -69,7 +49,7 @@ def get_trending_topics():
                     if queries:
                         trending_topics.extend(queries)
 
-        if not trending_topics:  # If still empty, use fallback topic
+        if not trending_topics:
             print("⚠️ No trending topics found. Using default topic.")
             return "SEO Best Practices"
 
@@ -79,11 +59,13 @@ def get_trending_topics():
 
     except Exception as e:
         print(f"❌ Error fetching trending topics: {e}")
-        return "SEO Best Practices"  # Fallback topic
+        return "SEO Best Practices"
 
 # -------------------- AI ARTICLE GENERATION --------------------
 def generate_article(topic):
     try:
+        print(f"📝 Generating article for topic: {topic}")
+
         if OPENAI_API_KEY:
             openai.api_key = OPENAI_API_KEY
             prompt = f"""
@@ -101,13 +83,13 @@ def generate_article(topic):
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=1500
             )
-            content = response.choices[0].message.content  # Correct response format
+            content = response.choices[0].message.content
             print("✅ Article generated successfully with OpenAI.")
             return content
 
     except Exception as e:
         print(f"⚠️ OpenAI failed: {e}. Trying Gemini...")
-        
+
         try:
             if GEMINI_API_KEY:
                 genai.configure(api_key=GEMINI_API_KEY)
@@ -115,6 +97,7 @@ def generate_article(topic):
                 response = model.generate_content(f"Write an SEO-optimized article about {topic}.")
                 print("✅ Article generated successfully with Gemini.")
                 return response.text
+
         except Exception as e:
             print(f"❌ Both OpenAI and Gemini failed: {e}")
             return "Error generating content."
@@ -144,15 +127,14 @@ def get_image(query):
 # ----------------- POST ARTICLE TO WORDPRESS -----------------
 def post_to_wordpress(title, content, image_url):
     try:
+        print(f"📡 Posting article: {title}")
+
         credentials = requests.auth._basic_auth_str(WP_USERNAME, WP_APP_PASSWORD)
 
-        # Replace category and tag names with numeric IDs
         post = {
             "title": title,
             "content": f"<img src='{image_url}' alt='{title}'/><br>{content}<br><br><strong>🚀 Explore our powerful SEO tools at <a href='https://seotoolfusion.com'>SEO Tool Fusion</a>!</strong>",
-            "status": "publish",
-            "categories": [1, 2, 3],  # Use real category IDs from WordPress
-            "tags": [10, 20, 30]  # Use real tag IDs from WordPress
+            "status": "publish"
         }
 
         response = requests.post(WP_URL, json=post, headers={"Authorization": credentials})
@@ -168,10 +150,19 @@ def post_to_wordpress(title, content, image_url):
 
 # --------------------- MAIN AUTO POST FUNCTION ---------------------
 def auto_post():
+    print("🚀 Running Auto Article Poster...")
+    
     trending_topic = get_trending_topics()
+    print(f"🔍 Selected Topic: {trending_topic}")
+
     content = generate_article(trending_topic)
+
     image_url = get_image(trending_topic)
+    print(f"🖼️ Selected Image URL: {image_url}")
+
     post_to_wordpress(trending_topic, content, image_url)
+
+    print("✅ Auto-posting completed.")
 
 # ------------------------ SCHEDULE TASK ------------------------
 schedule.every(10).seconds.do(auto_post)
