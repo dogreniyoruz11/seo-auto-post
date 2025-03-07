@@ -3,6 +3,7 @@ import random
 import requests
 import openai
 import json
+import backoff
 import time  # Import time for delay
 import google.generativeai as genai
 from pytrends.request import TrendReq
@@ -31,6 +32,21 @@ UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")  # Unsplash API Key
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")  # Pexels API Key
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")  # Pixabay API Key
 GOOGLE_GEMINI_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY")
+
+
+
+
+
+@backoff.on_exception(backoff.expo, openai.error.RateLimitError, max_tries=5)
+def generate_with_openai(prompt):
+    client = openai.OpenAI()
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message.content.strip()
+
+
 
 
 # ------------------- TRENDING KEYWORDS DISCOVERY -------------------
@@ -74,6 +90,7 @@ def fetch_trending_keywords():
         ]
 
     return trending_keywords[:10]  # Return top 10 results
+
 
 
 # ------------------- AI-BASED HIDDEN KEYWORDS -------------------
@@ -129,17 +146,19 @@ def generate_article(topic):
     except (openai.RateLimitError, openai.APIConnectionError, openai.AuthenticationError) as e:
         print(f"⚠️ OpenAI Failed: {e}. Switching to Google Gemini AI.")
 
-        model = genai.GenerativeModel("gemini-pro")
+        try:
+            model = genai.GenerativeModel("gemini-pro")  # ✅ Correct model name
+            summary_response = model.generate_content(summary_prompt)
+            summary = summary_response.text.strip()
 
-        # Use Gemini AI for summary
-        summary_response = model.generate_content(summary_prompt)
-        summary = summary_response.text.strip()
+            content_response = model.generate_content(content_prompt)
+            content = content_response.text.strip()
 
-        # Use Gemini AI for full article
-        content_response = model.generate_content(content_prompt)
-        content = content_response.text.strip()
+            return summary, content
+        except Exception as gemini_error:
+            print(f"❌ Google Gemini AI Failed: {gemini_error}")
+            return None, None
 
-        return summary, content
 
 # --------------------- IMAGE FETCH & COMPRESSION ---------------------
 def fetch_image(topic):
