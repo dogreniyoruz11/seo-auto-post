@@ -67,13 +67,14 @@ def fetch_trending_keywords():
 
 
 # ------------------- AI-BASED HIDDEN KEYWORDS -------------------
+
 def discover_unmined_keywords(topic):
     """Finds hidden, high-traffic, zero-competition keywords using AI."""
     prompt = f"Generate 10 untapped, high-traffic, zero-competition keywords related to '{topic}'."
     client = openai.OpenAI()
 
     response = client.chat.completions.create(
-        model="gpt-4-turbo",
+        model="gpt-3.5-turbo",  # ✅ Use `gpt-3.5-turbo`
         messages=[
             {"role": "system", "content": "You are an expert in keyword research."},
             {"role": "user", "content": prompt}
