@@ -161,7 +161,7 @@ def auto_post():
     post_to_wordpress(trending_topic, content, image_url)
 
 # ------------------------ SCHEDULE TASK ------------------------
-schedule.every(2).seconds.do(auto_post)
+schedule.every(2).hours.do(auto_post)
 print("🚀 Ultimate Auto Article Poster is running...")
 
 while True:
