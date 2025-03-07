@@ -23,8 +23,9 @@ openai.api_key = OPENAI_API_KEY
 
 
 # ------------------- TRENDING KEYWORDS DISCOVERY -------------------
+
 def fetch_trending_keywords():
-    """Fetch trending keywords from Google Trends while handling empty responses."""
+    """Fetch trending keywords from Google Trends while handling empty responses safely."""
     pytrends = TrendReq()
     keyword_groups = [
         ["SEO", "keyword research", "Google SEO", "ranking on Google"],
@@ -42,11 +43,12 @@ def fetch_trending_keywords():
         try:
             pytrends.build_payload(group, timeframe='now 7-d')
             time.sleep(2)  # Avoid Google Trends rate limits
+
             trends = pytrends.related_queries()
 
             if trends:
                 for kw in group:
-                    if trends.get(kw) and trends[kw]['top'] is not None:
+                    if kw in trends and trends[kw] and 'top' in trends[kw] and trends[kw]['top'] is not None:
                         queries = trends[kw]['top']['query'].tolist()
                         trending_keywords.extend(queries)
 
@@ -61,6 +63,7 @@ def fetch_trending_keywords():
         ]
 
     return trending_keywords[:10]  # Return top 10 results
+
 
 
 # ------------------- AI-BASED HIDDEN KEYWORDS -------------------
