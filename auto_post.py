@@ -14,16 +14,23 @@ from io import BytesIO
 WP_URL = os.getenv("WP_URL")  # WordPress URL
 WP_USERNAME = os.getenv("WP_USERNAME")  # WordPress Username
 WP_APP_PASSWORD = os.getenv("WP_APP_PASSWORD")  # WordPress App Password
+# ✅ Configure Google Gemini API Key
+GOOGLE_GEMINI_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY")
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # OpenAI API Key
+if GOOGLE_GEMINI_API_KEY:
+    genai.configure(api_key=GOOGLE_GEMINI_API_KEY)
+else:
+    raise ValueError("❌ GOOGLE_GEMINI_API_KEY is missing! Set it in Railway environment variables.")
+
+# ✅ Configure OpenAI API Key
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai.api_key = OPENAI_API_KEY
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")  # YouTube API Key
 CANVA_API_KEY = os.getenv("CANVA_API_KEY")  # Canva API Key
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")  # Unsplash API Key
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")  # Pexels API Key
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")  # Pixabay API Key
 GOOGLE_GEMINI_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY")
-
-openai.api_key = OPENAI_API_KEY
 
 
 # ------------------- TRENDING KEYWORDS DISCOVERY -------------------
