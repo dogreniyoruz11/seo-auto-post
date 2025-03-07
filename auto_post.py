@@ -10,9 +10,9 @@ from pytrends.request import TrendReq
 from requests.auth import HTTPBasicAuth
 from PIL import Image
 from io import BytesIO
-from openai import OpenAIError
+from openai import OpenAIError  # ✅ Import the correct error handler
 
-@backoff.on_exception(backoff.expo, OpenAIError, max_tries=5)
+@backoff.on_exception(backoff.expo, OpenAIError, max_tries=5)  # ✅ Corrected error handling
 def generate_with_openai(prompt):
     client = openai.OpenAI()
     response = client.chat.completions.create(
@@ -20,6 +20,8 @@ def generate_with_openai(prompt):
         messages=[{"role": "user", "content": prompt}]
     )
     return response.choices[0].message.content.strip()
+
+# ✅ Remove the duplicate incorrect error handling later in the script.
 
 # ----------------------- CONFIGURATION -----------------------
 WP_URL = os.getenv("WP_URL")  # WordPress URL
