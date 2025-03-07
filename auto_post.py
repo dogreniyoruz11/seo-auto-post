@@ -1,6 +1,7 @@
 import os
 import requests
 import openai
+import google.generativeai as genai
 import random
 import time
 from pytrends.request import TrendReq
@@ -11,13 +12,14 @@ WP_URL = os.getenv("WP_URL")
 WP_USERNAME = os.getenv("WP_USERNAME")
 WP_APP_PASSWORD = os.getenv("WP_APP_PASSWORD")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 
 # Check if all necessary environment variables are set
-if not all([WP_URL, WP_USERNAME, WP_APP_PASSWORD, OPENAI_API_KEY]):
-    raise ValueError("❌ Missing required environment variables. Check WP_URL, WP_USERNAME, WP_APP_PASSWORD, and OPENAI_API_KEY.")
+if not all([WP_URL, WP_USERNAME, WP_APP_PASSWORD]):
+    raise ValueError("❌ Missing required environment variables. Check WP_URL, WP_USERNAME, WP_APP_PASSWORD.")
 
 # ------------------- TRENDING TOPICS FROM GOOGLE -------------------
 def get_trending_topics():
@@ -55,27 +57,38 @@ def get_trending_topics():
 # -------------------- AI ARTICLE GENERATION --------------------
 def generate_article(topic):
     try:
-        openai.api_key = OPENAI_API_KEY
-        prompt = f"""
-        Write a detailed, engaging, and SEO-optimized article on "{topic}" including:
-        - Keyword-rich title
-        - Table of Contents
-        - Clear introduction
-        - At least 3 main sections (use H2 and H3 headings)
-        - Bullet points and numbered lists for clarity
-        - Conclusion with a strong Call-to-Action encouraging readers to explore powerful SEO tools at seotoolfusion.com
-        """
-        response = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=1500
-        )
-        content = response["choices"][0]["message"]["content"]
-        print("✅ Article generated successfully.")
-        return content
+        if OPENAI_API_KEY:
+            openai.api_key = OPENAI_API_KEY
+            prompt = f"""
+            Write a detailed, engaging, and SEO-optimized article on "{topic}" including:
+            - Keyword-rich title
+            - Table of Contents
+            - Clear introduction
+            - At least 3 main sections (use H2 and H3 headings)
+            - Bullet points and numbered lists for clarity
+            - Conclusion with a strong Call-to-Action encouraging readers to explore powerful SEO tools at seotoolfusion.com
+            """
+            response = openai.ChatCompletion.create(
+                model="gpt-4-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=1500
+            )
+            content = response["choices"][0]["message"]["content"]
+            print("✅ Article generated successfully with OpenAI.")
+            return content
     except Exception as e:
-        print(f"❌ Error generating article: {e}")
-        return "Error generating content."
+        print(f"⚠️ OpenAI failed: {e}. Trying Gemini...")
+        
+        try:
+            if GEMINI_API_KEY:
+                genai.configure(api_key=GEMINI_API_KEY)
+                model = genai.GenerativeModel("gemini-pro")
+                response = model.generate_content(f"Write an SEO-optimized article about {topic}.")
+                print("✅ Article generated successfully with Gemini.")
+                return response.text
+        except Exception as e:
+            print(f"❌ Both OpenAI and Gemini failed: {e}")
+            return "Error generating content."
 
 # --------------------- MULTIPLE IMAGE SOURCES ---------------------
 def get_image(query):
@@ -127,7 +140,7 @@ def auto_post():
     post_to_wordpress(trending_topic, content, image_url)
 
 # ------------------------ SCHEDULE TASK ------------------------
-schedule.every(10).seconds.do(auto_post)  # Adjust interval for testing
+schedule.every(10).seconds.do(auto_post)
 print("🚀 Ultimate Auto Article Poster is running...")
 
 while True:
