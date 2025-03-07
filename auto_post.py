@@ -4,6 +4,7 @@ import requests
 import openai
 import json
 import time  # Import time for delay
+import google.generativeai as genai
 from pytrends.request import TrendReq
 from requests.auth import HTTPBasicAuth
 from PIL import Image
@@ -48,7 +49,7 @@ def fetch_trending_keywords():
             time.sleep(2)  # Avoid Google Trends rate limits
             trends = pytrends.related_queries()
 
-            # Ensure `trends` contains data before accessing it
+            # ✅ Ensure `trends` exists and contains valid data
             if trends and isinstance(trends, dict):
                 for kw in group:
                     if kw in trends and trends[kw] and 'top' in trends[kw] and trends[kw]['top'] is not None:
@@ -68,20 +69,17 @@ def fetch_trending_keywords():
     return trending_keywords[:10]  # Return top 10 results
 
 
-
 # ------------------- AI-BASED HIDDEN KEYWORDS -------------------
 
-import google.generativeai as genai
 
 def discover_unmined_keywords(topic):
     """Tries OpenAI first. If OpenAI fails, switches to Google Gemini AI."""
     prompt = f"Generate 10 untapped, high-traffic, zero-competition keywords related to '{topic}'."
     
-    # Try OpenAI first
     try:
         client = openai.OpenAI()
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",  # OpenAI Model
+            model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message.content.split("\n")
@@ -94,8 +92,6 @@ def discover_unmined_keywords(topic):
         response = model.generate_content(prompt)
 
         return response.text.split("\n")
-
-
 
 
 # -------------------- AI ARTICLE GENERATION --------------------
@@ -137,9 +133,6 @@ def generate_article(topic):
         content = content_response.text.strip()
 
         return summary, content
-
-
-
 
 # --------------------- IMAGE FETCH & COMPRESSION ---------------------
 def fetch_image(topic):
@@ -188,8 +181,6 @@ def generate_hashtags(topic):
         response = model.generate_content(prompt)
 
         return response.text.strip()
-
-
 
 # --------------------- AUTO POST TO WORDPRESS ---------------------
 
