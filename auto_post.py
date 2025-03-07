@@ -40,18 +40,18 @@ def fetch_trending_keywords():
     for group in keyword_groups:
         try:
             pytrends.build_payload(group, timeframe='now 7-d')
-            time.sleep(2)  # Avoid request blocking
+            time.sleep(2)  # Avoid Google Trends rate limits
 
             trends = pytrends.related_queries()
 
-            if trends:
+            if trends:  # Check if `trends` is None
                 for kw in group:
-                    if kw in trends and trends[kw] and trends[kw]['top'] is not None:
+                    if trends.get(kw) and trends[kw]['top'] is not None:
                         queries = trends[kw]['top']['query'].tolist()
                         trending_keywords.extend(queries)
 
         except Exception as e:
-            print(f"⚠️ Error fetching trends for {group}: {e}")
+            print(f"⚠️ Google Trends API Error for {group}: {e}")
 
     if not trending_keywords:
         print("❌ No trending keywords found. Using fallback default keywords.")
