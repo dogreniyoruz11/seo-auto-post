@@ -26,23 +26,21 @@ else:
 
 # ✅ Configure OpenAI API Key
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-openai.api_key = OPENAI_API_KEY
+client = openai.Client(api_key=OPENAI_API_KEY)  # ✅ Correct way to initialize OpenAI in v1.0.0+
 
 # ✅ Configure Image APIs
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
-PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
-PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 
 # ------------------- AI CONTENT GENERATION -------------------
 @backoff.on_exception(backoff.expo, OpenAIError, max_tries=5)
 def generate_with_openai(prompt):
     """Generate AI response using OpenAI API with retry mechanism."""
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
-        return response["choices"][0]["message"]["content"].strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         print(f"❌ OpenAI API Error: {e}")
         return None
@@ -71,10 +69,10 @@ def fetch_trending_keywords():
             if trends:
                 for kw in group:
                     if kw in trends and trends[kw] and isinstance(trends[kw], dict):
-                        if 'top' in trends[kw] and trends[kw]['top'] is not None:
-                            if 'query' in trends[kw]['top']:
-                                queries = trends[kw]['top']['query'].tolist()
-                                trending_keywords.extend(queries)
+                        top_queries = trends[kw].get('top', None)
+                        if top_queries is not None and 'query' in top_queries:
+                            queries = top_queries['query'].tolist()
+                            trending_keywords.extend(queries)
         except Exception as e:
             print(f"⚠️ Google Trends API Error for {group}: {e}")
 
@@ -101,7 +99,13 @@ def generate_article(topic):
 
     print("⚠️ OpenAI Failed. Switching to Google Gemini AI.")
     try:
-        model = genai.GenerativeModel("gemini-pro")
+        model_name = "gemini-pro"
+        available_models = [model.name for model in genai.list_models()]
+        if model_name not in available_models:
+            print(f"❌ ERROR: Model {model_name} is not available. Available models: {available_models}")
+            return None, None
+
+        model = genai.GenerativeModel(model_name)
         summary_response = model.generate_content(summary_prompt)
         summary = summary_response.text.strip()
 
@@ -143,23 +147,15 @@ def fetch_and_compress_image(topic):
     img.save(buffer, format="JPEG", quality=75, optimize=True)
     return image_url  # Replace with actual upload function
 
-# --------------------- AI-GENERATED HASHTAGS ---------------------
-def generate_hashtags(topic):
-    """Generate AI-powered hashtags for social media sharing."""
-    prompt = f"Generate 5 relevant hashtags for a blog post on '{topic}'."
-    hashtags = generate_with_openai(prompt)
-    return hashtags if hashtags else "#SEO #Marketing #ContentStrategy"
-
 # --------------------- AUTO POST TO WORDPRESS ---------------------
 def post_to_wordpress(title, summary, content, topic):
     """Auto-post the generated article to WordPress."""
     auth = HTTPBasicAuth(WP_USERNAME, WP_APP_PASSWORD)
     image_url = fetch_and_compress_image(topic)
-    hashtags = generate_hashtags(topic)
 
     post_data = {
         "title": title,
-        "content": f"<h2>Summary</h2><p>{summary}</p><br><img src='{image_url}' alt='{title}' width='800' /><br>{content}<br>{hashtags}<br>",
+        "content": f"<h2>Summary</h2><p>{summary}</p><br><img src='{image_url}' alt='{title}' width='800' /><br>{content}<br>",
         "status": "publish"
     }
 
