@@ -21,9 +21,6 @@ PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")  # Pixabay API Key
 openai.api_key = OPENAI_API_KEY
 
 # ------------------- TRENDING KEYWORDS DISCOVERY -------------------
-import random
-from pytrends.request import TrendReq
-
 def fetch_trending_keywords():
     """Fetch trending keywords from Google Trends while handling empty responses."""
     pytrends = TrendReq()
