@@ -5,6 +5,7 @@ import openai
 import json
 import time  # Import time for delay
 from pytrends.request import TrendReq
+from requests.auth import HTTPBasicAuth
 from PIL import Image
 from io import BytesIO
 
@@ -43,7 +44,6 @@ def fetch_trending_keywords():
         try:
             pytrends.build_payload(group, timeframe='now 7-d')
             time.sleep(2)  # Avoid Google Trends rate limits
-
             trends = pytrends.related_queries()
 
             if trends:
@@ -63,6 +63,7 @@ def fetch_trending_keywords():
         ]
 
     return trending_keywords[:10]  # Return top 10 results
+
 
 
 
@@ -108,8 +109,18 @@ def generate_article(topic):
 
 # --------------------- IMAGE FETCH & COMPRESSION ---------------------
 def fetch_image(topic):
-    """Fetches an image from Unsplash, Pexels, or Pixabay."""
-    return "https://example.com/sample.jpg"  # Replace with actual API call
+    """Fetches an image from Unsplash API."""
+    UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
+    url = f"https://api.unsplash.com/photos/random?query={topic}&client_id={UNSPLASH_ACCESS_KEY}"
+
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        return data["urls"]["regular"]  # ✅ Returns a real image URL
+    else:
+        print("⚠️ Failed to fetch image from Unsplash. Using fallback image.")
+        return "https://example.com/sample.jpg"
+
 
 
 def fetch_and_compress_image(topic):
@@ -128,7 +139,7 @@ def generate_hashtags(topic):
     client = openai.OpenAI()
     prompt = f"Generate 5 relevant hashtags for a blog post on '{topic}'."
     response = client.chat.completions.create(
-        model="gpt-4-turbo",
+        model="gpt-4o",  # ✅ Replaced with a valid model
         messages=[{"role": "user", "content": prompt}]
     )
     return response.choices[0].message.content
@@ -137,7 +148,7 @@ def generate_hashtags(topic):
 # --------------------- AUTO POST TO WORDPRESS ---------------------
 
 def post_to_wordpress(title, summary, content, topic):
-    credentials = requests.auth._basic_auth_str(WP_USERNAME, WP_APP_PASSWORD)
+    auth = HTTPBasicAuth(WP_USERNAME, WP_APP_PASSWORD)
     image_url = fetch_and_compress_image(topic)
     hashtags = generate_hashtags(topic)
 
@@ -165,12 +176,9 @@ def post_to_wordpress(title, summary, content, topic):
         "status": "publish"
     }
 
-    headers = {
-        "Authorization": f"Basic {credentials}",
-        "Content-Type": "application/json"
-    }
-
-    response = requests.post(f"{WP_URL}/wp-json/wp/v2/posts", json=post_data, headers=headers)
+    headers = {"Content-Type": "application/json"}
+    
+    response = requests.post(f"{WP_URL}/wp-json/wp/v2/posts", json=post_data, headers=headers, auth=auth)
 
     if response.status_code == 201:
         print(f"✅ Successfully posted: {title}")
@@ -180,6 +188,7 @@ def post_to_wordpress(title, summary, content, topic):
         print(f"⚠️ Response Content: {response.text}")  # Print the API response for debugging
 
     return response.status_code == 201
+
 
 
 # --------------------- MAIN AUTO POST FUNCTION ---------------------
