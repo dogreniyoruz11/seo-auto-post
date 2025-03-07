@@ -65,14 +65,22 @@ def fetch_trending_keywords():
 
 
 # ------------------- AI-BASED HIDDEN KEYWORDS -------------------
+
 def discover_unmined_keywords(topic):
-    prompt = f"Generate 10 untapped, high-traffic, zero-competition keywords related to '{topic}'."
+    """Finds hidden, high-traffic, zero-competition keywords using AI."""
+    
+    prompt = f"""
+    Generate 10 untapped, high-traffic, zero-competition keywords related to '{topic}'.
+    These should be keywords with huge traffic potential that are not widely targeted.
+    """
+
     response = openai.ChatCompletion.create(
         model="gpt-4-turbo",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=200
+        messages=[{"role": "system", "content": "You are a keyword research expert."},
+                  {"role": "user", "content": prompt}]
     )
-    return response["choices"][0]["message"]["content"].split("\n")
+
+    return response.choices[0].message.content.split("\n")
 
 # -------------------- AI ARTICLE GENERATION --------------------
 def generate_article(topic):
