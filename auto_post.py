@@ -40,7 +40,7 @@ UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 def generate_with_openai(prompt):
     """Generate AI response using OpenAI API with retry mechanism."""
     try:
-        response = openai.ChatCompletion.create(
+        response = openai.ChatCompletion.create(  # ✅ Correct OpenAI call
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
@@ -50,10 +50,12 @@ def generate_with_openai(prompt):
         return None
 
 
+
 # ------------------- FIXED: TRENDING KEYWORDS DISCOVERY -------------------
+
 def fetch_trending_keywords():
     """Fetch trending keywords from Google Trends while handling empty responses safely."""
-    pytrends = TrendReq(hl='en-US', tz=360)  # ✅ Added proper language and timezone settings
+    pytrends = TrendReq(hl='en-US', tz=360, retries=3, backoff_factor=0.1)  # ✅ Added retries and backoff
     keyword_groups = [
         ["SEO", "keyword research", "Google SEO", "ranking on Google"],
         ["YouTube SEO", "rank YouTube videos", "YouTube algorithm", "video SEO"],
@@ -67,13 +69,13 @@ def fetch_trending_keywords():
     trending_keywords = []
     for group in keyword_groups:
         try:
-            pytrends.build_payload(group, timeframe='now 7-d', geo='US')  # ✅ Use USA region
+            pytrends.build_payload(group, timeframe='now 7-d', geo='US')  # ✅ Added geo='US'
             time.sleep(2)  # Avoid Google Trends rate limits
             trends = pytrends.related_queries()
 
             if trends:
                 for kw in group:
-                    if kw in trends and isinstance(trends[kw], dict):
+                    if trends.get(kw) and isinstance(trends[kw], dict):
                         top_queries = trends[kw].get('top')
                         if isinstance(top_queries, dict) and 'query' in top_queries:
                             queries = top_queries['query'].tolist()
@@ -136,26 +138,43 @@ def fetch_image(topic):
 
 
 # --------------------- AUTO POST TO WORDPRESS ---------------------
-def post_to_wordpress(title, summary, content, topic):
-    """Auto-post the generated article to WordPress."""
-    auth = HTTPBasicAuth(WP_USERNAME, WP_APP_PASSWORD)
-    image_url = fetch_image(topic) or "https://example.com/sample.jpg"
+def post_to_wordpress(title, summary, content):
+    """Posts an article to WordPress using REST API."""
 
+    # ✅ Check if WP_URL is valid
+    if not WP_URL or not WP_URL.startswith("http"):
+        print("❌ ERROR: WP_URL is missing or invalid! Check your Railway environment variables.")
+        return False
+
+    # ✅ Correct API Endpoint
+    api_url = f"{WP_URL}/wp-json/wp/v2/posts"
+
+    # ✅ Set up authentication and headers
+    auth = HTTPBasicAuth(WP_USERNAME, WP_APP_PASSWORD)
+    headers = {"Content-Type": "application/json"}
+
+    # ✅ Prepare post data
     post_data = {
         "title": title,
-        "content": f"<h2>Summary</h2><p>{summary}</p><br><img src='{image_url}' alt='{title}' width='800' /><br>{content}<br>",
+        "content": f"<h2>Summary</h2><p>{summary}</p><br>{content}<br>",
         "status": "publish"
     }
 
-    headers = {"Content-Type": "application/json"}
-    response = requests.post(f"{WP_URL}/wp-json/wp/v2/posts", json=post_data, headers=headers, auth=auth)
+    # ✅ Send the POST request
+    response = requests.post(api_url, json=post_data, headers=headers, auth=auth)
 
+    # ✅ Debugging Output
+    print(f"🔄 Posting to: {api_url}")
+    print(f"📡 Request Headers: {headers}")
+    print(f"📄 Request Body: {post_data}")
+
+    # ✅ Handle Response
     if response.status_code == 201:
         print(f"✅ Successfully posted: {title}")
+        return True
     else:
         print(f"❌ Failed to post: {title}. HTTP {response.status_code}. Response: {response.text}")
-
-
+        return False
 # --------------------- MAIN AUTO POST FUNCTION ---------------------
 def auto_post():
     for _ in range(5):
