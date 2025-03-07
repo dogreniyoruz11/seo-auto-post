@@ -154,21 +154,27 @@ def get_image(query):
 def post_to_wordpress(title, content, image_url):
     try:
         credentials = requests.auth._basic_auth_str(WP_USERNAME, WP_APP_PASSWORD)
+
+        # Replace category and tag names with numeric IDs
         post = {
             "title": title,
             "content": f"<img src='{image_url}' alt='{title}'/><br>{content}<br><br><strong>🚀 Explore our powerful SEO tools at <a href='https://seotoolfusion.com'>SEO Tool Fusion</a>!</strong>",
             "status": "publish",
-            "categories": ["SEO", "Digital Marketing", "YouTube SEO", "Affiliate Marketing"],
-            "tags": title.lower().split()
+            "categories": [1, 2, 3],  # Use real category IDs from WordPress
+            "tags": [10, 20, 30]  # Use real tag IDs from WordPress
         }
+
         response = requests.post(WP_URL, json=post, headers={"Authorization": credentials})
         print(f"📡 API Response Code: {response.status_code}")
+
         if response.status_code == 201:
             print(f"✅ Successfully posted: {title}")
         else:
             print(f"❌ Failed to post: {response.text}")
+
     except Exception as e:
         print(f"❌ Error posting to WordPress: {e}")
+
 
 # --------------------- MAIN AUTO POST FUNCTION ---------------------
 def auto_post():
