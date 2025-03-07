@@ -74,13 +74,18 @@ def discover_unmined_keywords(topic):
     These should be keywords with huge traffic potential that are not widely targeted.
     """
 
-    response = openai.ChatCompletion.create(
+    client = openai.OpenAI()  # ✅ Use the new OpenAI API format
+
+    response = client.chat.completions.create(
         model="gpt-4-turbo",
-        messages=[{"role": "system", "content": "You are a keyword research expert."},
-                  {"role": "user", "content": prompt}]
+        messages=[
+            {"role": "system", "content": "You are an expert in keyword research."},
+            {"role": "user", "content": prompt}
+        ]
     )
 
     return response.choices[0].message.content.split("\n")
+
 
 # -------------------- AI ARTICLE GENERATION --------------------
 def generate_article(topic):
