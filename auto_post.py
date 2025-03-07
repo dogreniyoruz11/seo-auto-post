@@ -110,6 +110,7 @@ def generate_article(topic):
              max_tokens=1500
         )
 
+
             )
             content = response["choices"][0]["message"]["content"]
             print("✅ Article generated successfully with OpenAI.")
