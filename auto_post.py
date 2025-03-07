@@ -10,6 +10,16 @@ from pytrends.request import TrendReq
 from requests.auth import HTTPBasicAuth
 from PIL import Image
 from io import BytesIO
+from openai import OpenAIError
+
+@backoff.on_exception(backoff.expo, OpenAIError, max_tries=5)
+def generate_with_openai(prompt):
+    client = openai.OpenAI()
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message.content.strip()
 
 # ----------------------- CONFIGURATION -----------------------
 WP_URL = os.getenv("WP_URL")  # WordPress URL
@@ -37,7 +47,7 @@ GOOGLE_GEMINI_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY")
 
 
 
-@backoff.on_exception(backoff.expo, openai.error.RateLimitError, max_tries=5)
+@backoff.on_exception(backoff.expo, OpenAIError, max_tries=5)
 def generate_with_openai(prompt):
     client = openai.OpenAI()
     response = client.chat.completions.create(
