@@ -4,8 +4,9 @@ import openai
 import google.generativeai as genai
 import random
 import time
-from pytrends.request import TrendReq
 import schedule
+from pytrends.request import TrendReq
+from requests.auth import HTTPBasicAuth
 
 # ----------------------- CONFIGURATION -----------------------
 WP_URL = os.getenv("WP_URL")
@@ -23,7 +24,9 @@ if not all([WP_URL, WP_USERNAME, WP_APP_PASSWORD]):
 
 # ------------------- TRENDING TOPICS FROM GOOGLE -------------------
 def get_trending_topics():
+    """Fetches trending topics from Google Trends using PyTrends API."""
     try:
+        print("🔍 Fetching trending topics from Google Trends...")
         pytrends = TrendReq()
         keyword_groups = [
             ["SEO", "keyword research", "Google SEO", "ranking on Google"],
@@ -40,7 +43,7 @@ def get_trending_topics():
             pytrends.build_payload(group, timeframe='now 7-d')
             trends = pytrends.related_queries()
 
-            if not trends or trends == {}:
+            if not trends or trends == {}:  
                 continue  
 
             for kw in group:
@@ -54,7 +57,7 @@ def get_trending_topics():
             return "SEO Best Practices"
 
         topic = random.choice(trending_topics).capitalize()
-        print(f"🔍 Selected Trending Topic: {topic}")
+        print(f"✅ Selected Trending Topic: {topic}")
         return topic
 
     except Exception as e:
@@ -63,8 +66,9 @@ def get_trending_topics():
 
 # -------------------- AI ARTICLE GENERATION --------------------
 def generate_article(topic):
+    """Generates an AI-powered SEO-optimized article using OpenAI or Gemini."""
     try:
-        print(f"📝 Generating article for topic: {topic}")
+        print(f"📝 Generating article for: {topic}")
 
         if OPENAI_API_KEY:
             openai.api_key = OPENAI_API_KEY
@@ -78,18 +82,19 @@ def generate_article(topic):
             - Conclusion with a strong Call-to-Action encouraging readers to explore powerful SEO tools at seotoolfusion.com
             """
 
-            response = openai.chat.completions.create(
+            response = openai.ChatCompletion.create(
                 model="gpt-4-turbo",
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=1500
             )
-            content = response.choices[0].message.content
+
+            content = response['choices'][0]['message']['content']
             print("✅ Article generated successfully with OpenAI.")
             return content
 
     except Exception as e:
         print(f"⚠️ OpenAI failed: {e}. Trying Gemini...")
-
+        
         try:
             if GEMINI_API_KEY:
                 genai.configure(api_key=GEMINI_API_KEY)
@@ -97,13 +102,13 @@ def generate_article(topic):
                 response = model.generate_content(f"Write an SEO-optimized article about {topic}.")
                 print("✅ Article generated successfully with Gemini.")
                 return response.text
-
         except Exception as e:
             print(f"❌ Both OpenAI and Gemini failed: {e}")
             return "Error generating content."
 
 # --------------------- MULTIPLE IMAGE SOURCES ---------------------
 def get_image(query):
+    """Fetches a relevant image from Unsplash, Pexels, or Pixabay."""
     for source, url in {
         "Unsplash": f"https://api.unsplash.com/photos/random?query={query}&client_id={UNSPLASH_ACCESS_KEY}",
         "Pexels": f"https://api.pexels.com/v1/search?query={query}&per_page=1",
@@ -126,19 +131,19 @@ def get_image(query):
 
 # ----------------- POST ARTICLE TO WORDPRESS -----------------
 def post_to_wordpress(title, content, image_url):
+    """Posts the generated article to WordPress."""
     try:
-        print(f"📡 Posting article: {title}")
-
-        credentials = requests.auth._basic_auth_str(WP_USERNAME, WP_APP_PASSWORD)
+        credentials = HTTPBasicAuth(WP_USERNAME, WP_APP_PASSWORD)
 
         post = {
             "title": title,
             "content": f"<img src='{image_url}' alt='{title}'/><br>{content}<br><br><strong>🚀 Explore our powerful SEO tools at <a href='https://seotoolfusion.com'>SEO Tool Fusion</a>!</strong>",
-            "status": "publish"
+            "status": "publish",
+            "categories": [1, 2, 3],  # Update with actual category IDs
+            "tags": [10, 20, 30]  # Update with actual tag IDs
         }
 
-        response = requests.post(WP_URL, json=post, headers={"Authorization": credentials})
-        print(f"📡 API Response Code: {response.status_code}")
+        response = requests.post(WP_URL, json=post, auth=credentials)
 
         if response.status_code == 201:
             print(f"✅ Successfully posted: {title}")
@@ -150,24 +155,21 @@ def post_to_wordpress(title, content, image_url):
 
 # --------------------- MAIN AUTO POST FUNCTION ---------------------
 def auto_post():
-    print("🚀 Running Auto Article Poster...")
-    
     trending_topic = get_trending_topics()
-    print(f"🔍 Selected Topic: {trending_topic}")
-
     content = generate_article(trending_topic)
-
     image_url = get_image(trending_topic)
-    print(f"🖼️ Selected Image URL: {image_url}")
-
     post_to_wordpress(trending_topic, content, image_url)
 
-    print("✅ Auto-posting completed.")
-
 # ------------------------ SCHEDULE TASK ------------------------
-schedule.every(10).seconds.do(auto_post)
+schedule.every(2).minutes.do(auto_post)
 print("🚀 Ultimate Auto Article Poster is running...")
 
 while True:
-    schedule.run_pending()
-    time.sleep(60)
+    try:
+        schedule.run_pending()
+        time.sleep(60)
+    except KeyboardInterrupt:
+        print("🛑 Script stopped by user.")
+        break
+    except Exception as e:
+        print(f"⚠️ Unexpected error: {e}")
