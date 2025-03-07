@@ -67,20 +67,27 @@ def get_trending_topics():
         for group in keyword_groups:
             pytrends.build_payload(group, timeframe='now 7-d')
             trends = pytrends.related_queries()
+
+            if not trends or trends == {}:  # If empty, skip
+                continue  
+
             for kw in group:
                 if trends.get(kw) and trends[kw]['top'] is not None:
                     queries = trends[kw]['top']['query'].tolist()
-                    trending_topics.extend(queries)
-        
-        if not trending_topics:
+                    if queries:
+                        trending_topics.extend(queries)
+
+        if not trending_topics:  # If still empty, use fallback topic
+            print("⚠️ No trending topics found. Using default topic.")
             return "SEO Best Practices"
-        
+
         topic = random.choice(trending_topics).capitalize()
         print(f"🔍 Selected Trending Topic: {topic}")
         return topic
+
     except Exception as e:
         print(f"❌ Error fetching trending topics: {e}")
-        return "SEO Best Practices"
+        return "SEO Best Practices"  # Fallback topic
 
 # -------------------- AI ARTICLE GENERATION --------------------
 def generate_article(topic):
