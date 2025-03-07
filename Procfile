@@ -1,1 +1,1 @@
-web: python auto_post.py
+worker: python auto_post.py
