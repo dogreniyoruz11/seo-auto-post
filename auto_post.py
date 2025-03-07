@@ -161,7 +161,7 @@ def auto_post():
     post_to_wordpress(trending_topic, content, image_url)
 
 # ------------------------ SCHEDULE TASK ------------------------
-schedule.every(10).seconds.do(auto_post)  # Reduced frequency to avoid bans
+schedule.every(10).hours.do(auto_post)  # Reduced frequency to avoid bans
 print("🚀 Ultimate Auto Article Poster is running...")
 
 while True:
