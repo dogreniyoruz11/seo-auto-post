@@ -21,6 +21,26 @@ PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 if not all([WP_URL, WP_USERNAME, WP_APP_PASSWORD]):
     raise ValueError("❌ Missing required environment variables. Check WP_URL, WP_USERNAME, WP_APP_PASSWORD.")
 
+
+
+# Debug Google Trends API response
+trending_topic = get_trending_topics()
+print(f"🔍 Selected Topic: {trending_topic}")
+
+# Debug AI-generated article
+content = generate_article(trending_topic)
+print(f"📝 Generated Content: {content}")
+
+# Debug Image Fetching
+image_url = get_image(trending_topic)
+print(f"🖼️ Selected Image: {image_url}")
+
+# Debug WordPress API request
+print(f"🚀 Posting to WordPress:\nTitle: {trending_topic}\nContent: {content}\nImage: {image_url}")
+
+
+
+
 # ------------------- TRENDING TOPICS FROM GOOGLE -------------------
 def get_trending_topics():
     try:
