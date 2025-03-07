@@ -9,6 +9,7 @@ from io import BytesIO
 import schedule
 import time
 from requests.auth import HTTPBasicAuth
+from requests.adapters import Retry  
 
 # ----------------------- CONFIGURATION -----------------------
 WP_URL = os.getenv("WP_URL")  # WordPress URL
@@ -29,12 +30,9 @@ if GOOGLE_GEMINI_API_KEY:
 else:
     print("❌ WARNING: GOOGLE_GEMINI_API_KEY is missing!")
 
-# ------------------- FETCH TRENDING KEYWORDS -------------------
+# ------------------- FETCH SEO-OPTIMIZED KEYWORDS -------------------
 def fetch_trending_keywords():
-    from requests.adapters import Retry
-
-pytrends = TrendReq(hl='en-US', tz=360, retries=Retry(total=3, backoff_factor=0.1, allowed_methods=None))
-
+    pytrends = TrendReq(hl='en-US', tz=360, retries=Retry(total=3, backoff_factor=0.1, allowed_methods=None))
     keyword_groups = [
         ["SEO", "keyword research", "Google SEO", "ranking on Google"],
         ["YouTube SEO", "rank YouTube videos", "YouTube algorithm", "video SEO"],
@@ -60,12 +58,12 @@ pytrends = TrendReq(hl='en-US', tz=360, retries=Retry(total=3, backoff_factor=0.
                             trending_keywords.extend(queries)
         except Exception as e:
             print(f"⚠️ Google Trends API Error: {e}")
-
-    return trending_keywords[:10] if trending_keywords else ["SEO strategies", "Google ranking tips"]
+    
+    return trending_keywords[:10] if trending_keywords else generate_unmined_keywords()
 
 # ------------------- AI-BASED UNMINED KEYWORDS -------------------
-def discover_unmined_keywords(topic):
-    prompt = f"Generate 10 untapped, high-traffic, zero-competition keywords related to '{topic}'."
+def generate_unmined_keywords():
+    prompt = "Generate 10 untapped, high-traffic, zero-competition SEO-related keywords."
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4-turbo",
@@ -74,13 +72,13 @@ def discover_unmined_keywords(topic):
         )
         return response["choices"][0]["message"]["content"].split("\n")
     except:
-        return []
+        return ["SEO growth hacks", "hidden SEO tricks", "Google ranking loopholes"]
 
 # -------------------- AI ARTICLE GENERATION --------------------
 def generate_article(topic):
     summary_prompt = f"Generate a 3-4 sentence summary of an article about '{topic}'."
     content_prompt = f"Write a 1500-2000 word engaging SEO-optimized article on '{topic}'. Include a Table of Contents."
-
+    
     try:
         summary = openai.ChatCompletion.create(
             model="gpt-4-turbo",
@@ -95,93 +93,34 @@ def generate_article(topic):
         )["choices"][0]["message"]["content"]
 
         return summary, content
-
     except:
         print("⚠️ OpenAI Failed. Switching to Google Gemini AI.")
         try:
             model = genai.GenerativeModel("gemini-1.5-pro-latest")
             summary_response = model.generate_content(summary_prompt)
             content_response = model.generate_content(content_prompt)
-
             return summary_response.text.strip(), content_response.text.strip()
         except:
             print("❌ AI Failed: Skipping article generation.")
             return None, None
 
-# --------------------- FETCH MULTIPLE IMAGES ---------------------
-def fetch_images(topic, count=5):
-    """Fetch multiple images from Unsplash based on the topic."""
-    if not UNSPLASH_ACCESS_KEY:
-        print("⚠️ Unsplash API Key Missing.")
-        return []
-
-    images = []
-    url = f"https://api.unsplash.com/photos/random?query={topic}&count={count}&client_id={UNSPLASH_ACCESS_KEY}"
-    try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            images = [img["urls"]["regular"] for img in data if "urls" in img]
-    except:
-        print(f"⚠️ Failed to fetch images.")
-    
-    return images
-
-# --------------------- AI-GENERATED HASHTAGS ---------------------
-def generate_hashtags(topic):
-    prompt = f"Generate 5 relevant hashtags for a blog post on '{topic}'."
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=50
-        )
-        return response["choices"][0]["message"]["content"]
-    except:
-        return ""
-
 # --------------------- AUTO POST TO WORDPRESS ---------------------
 def post_to_wordpress(title, summary, content, topic):
     credentials = HTTPBasicAuth(WP_USERNAME, WP_APP_PASSWORD)
-    
-    image_urls = fetch_images(topic, count=5)
-    image_html = "".join([f'<img src="{url}" alt="{topic}" style="max-width:100%; height:auto;"/><br>' for url in image_urls])
-
-    hashtags = generate_hashtags(topic)
-
-    full_content = f"""
-    <h2>Summary</h2>
-    <p>{summary}</p><br>
-    {image_html}
-    <br>
-    {content}
-    <br>
-    {hashtags}<br>
-    """
-
     api_url = f"{WP_URL.rstrip('/')}/wp-json/wp/v2/posts"
     headers = {"Content-Type": "application/json"}
-    post_data = {
-        "title": title,
-        "content": full_content,
-        "status": "publish"
-    }
-
+    post_data = {"title": title, "content": f"<h2>Summary</h2><p>{summary}</p><br>{content}", "status": "publish"}
+    
     response = requests.post(api_url, json=post_data, headers=headers, auth=credentials)
-
     if response.status_code == 201:
         print(f"✅ Successfully posted: {title}")
-        return True
     else:
         print(f"❌ Failed to post: {title}. HTTP {response.status_code}")
-        return False
 
 # --------------------- MAIN AUTO POST FUNCTION ---------------------
 def auto_post():
     topic = random.choice(fetch_trending_keywords())
-    unmined_keywords = discover_unmined_keywords(topic)
     summary, content = generate_article(topic)
-
     if summary and content:
         post_to_wordpress(topic, summary, content, topic)
     else:
