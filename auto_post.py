@@ -21,6 +21,34 @@ PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
 if not all([WP_URL, WP_USERNAME, WP_APP_PASSWORD]):
     raise ValueError("❌ Missing required environment variables. Check WP_URL, WP_USERNAME, WP_APP_PASSWORD.")
 
+
+
+
+def test_google_trends():
+    try:
+        pytrends = TrendReq()
+        pytrends.build_payload(["SEO"], timeframe='now 7-d')
+        trends = pytrends.related_queries()
+
+        print("📊 Google Trends Data:")
+        print(trends)
+
+        if not trends or trends == {}:
+            print("⚠️ Google may be blocking Railway's IP!")
+        else:
+            print("✅ Google Trends is working fine!")
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
+
+# Run the test
+test_google_trends()
+
+
+
+
+
+
 # ------------------- TRENDING TOPICS FROM GOOGLE -------------------
 def get_trending_topics():
     try:
