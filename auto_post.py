@@ -26,24 +26,29 @@ else:
 
 # ✅ Configure OpenAI API Key
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-client = openai.Client(api_key=OPENAI_API_KEY)  # ✅ Correct way to initialize OpenAI in v1.0.0+
+if not OPENAI_API_KEY:
+    print("❌ ERROR: OPENAI_API_KEY is missing! Set it in Railway environment variables.")
+else:
+    openai.api_key = OPENAI_API_KEY
 
 # ✅ Configure Image APIs
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
+
 
 # ------------------- AI CONTENT GENERATION -------------------
 @backoff.on_exception(backoff.expo, OpenAIError, max_tries=5)
 def generate_with_openai(prompt):
     """Generate AI response using OpenAI API with retry mechanism."""
     try:
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}]
         )
-        return response.choices[0].message.content.strip()
+        return response["choices"][0]["message"]["content"].strip()
     except Exception as e:
         print(f"❌ OpenAI API Error: {e}")
         return None
+
 
 # ------------------- TRENDING KEYWORDS DISCOVERY -------------------
 def fetch_trending_keywords():
@@ -85,6 +90,7 @@ def fetch_trending_keywords():
 
     return trending_keywords[:10]  # Return top 10 results
 
+
 # ------------------- AI ARTICLE GENERATION -------------------
 def generate_article(topic):
     """Generate an AI-powered article using OpenAI & Google Gemini AI."""
@@ -99,23 +105,17 @@ def generate_article(topic):
 
     print("⚠️ OpenAI Failed. Switching to Google Gemini AI.")
     try:
-        model_name = "gemini-pro"
-        available_models = [model.name for model in genai.list_models()]
-        if model_name not in available_models:
-            print(f"❌ ERROR: Model {model_name} is not available. Available models: {available_models}")
-            return None, None
-
+        model_name = "gemini-1.5-pro-latest"
         model = genai.GenerativeModel(model_name)
+
         summary_response = model.generate_content(summary_prompt)
-        summary = summary_response.text.strip()
-
         content_response = model.generate_content(content_prompt)
-        content = content_response.text.strip()
 
-        return summary, content
+        return summary_response.text.strip(), content_response.text.strip()
     except Exception as gemini_error:
         print(f"❌ Google Gemini AI Failed: {gemini_error}")
         return None, None
+
 
 # --------------------- IMAGE FETCH & COMPRESSION ---------------------
 def fetch_image(topic):
@@ -134,24 +134,12 @@ def fetch_image(topic):
         print(f"⚠️ Failed to fetch image from Unsplash: {e}")
     return None
 
-def fetch_and_compress_image(topic):
-    """Fetch and compress an image before uploading."""
-    image_url = fetch_image(topic)
-    if not image_url:
-        return "https://example.com/sample.jpg"  # Fallback image
-
-    response = requests.get(image_url)
-    img = Image.open(BytesIO(response.content))
-    img = img.resize((800, int(img.height * (800 / img.width))))  # Keep aspect ratio
-    buffer = BytesIO()
-    img.save(buffer, format="JPEG", quality=75, optimize=True)
-    return image_url  # Replace with actual upload function
 
 # --------------------- AUTO POST TO WORDPRESS ---------------------
 def post_to_wordpress(title, summary, content, topic):
     """Auto-post the generated article to WordPress."""
     auth = HTTPBasicAuth(WP_USERNAME, WP_APP_PASSWORD)
-    image_url = fetch_and_compress_image(topic)
+    image_url = fetch_image(topic) or "https://example.com/sample.jpg"
 
     post_data = {
         "title": title,
@@ -165,7 +153,8 @@ def post_to_wordpress(title, summary, content, topic):
     if response.status_code == 201:
         print(f"✅ Successfully posted: {title}")
     else:
-        print(f"❌ Failed to post: {title}. HTTP {response.status_code}")
+        print(f"❌ Failed to post: {title}. HTTP {response.status_code}. Response: {response.text}")
+
 
 # --------------------- MAIN AUTO POST FUNCTION ---------------------
 def auto_post():
