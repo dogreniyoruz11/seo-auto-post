@@ -90,19 +90,20 @@ def generate_article(topic):
 
     summary_prompt = f"Generate a 3-4 sentence summary of an article about '{topic}'."
     summary_response = client.chat.completions.create(
-        model="gpt-4-turbo",
+        model="gpt-3.5-turbo",  # ✅ Use `gpt-3.5-turbo`
         messages=[{"role": "user", "content": summary_prompt}]
     )
     summary = summary_response.choices[0].message.content
 
     content_prompt = f"Write a 1500-2000 word engaging SEO-optimized article on '{topic}'. Include a Table of Contents."
     content_response = client.chat.completions.create(
-        model="gpt-4-turbo",
+        model="gpt-3.5-turbo",  # ✅ Use `gpt-3.5-turbo`
         messages=[{"role": "user", "content": content_prompt}]
     )
     content = content_response.choices[0].message.content
 
     return summary, content
+
 
 
 # --------------------- IMAGE FETCH & COMPRESSION ---------------------
