@@ -20,6 +20,8 @@ CANVA_API_KEY = os.getenv("CANVA_API_KEY")  # Canva API Key
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")  # Unsplash API Key
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")  # Pexels API Key
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")  # Pixabay API Key
+GOOGLE_GEMINI_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY")
+
 openai.api_key = OPENAI_API_KEY
 
 
@@ -70,40 +72,68 @@ def fetch_trending_keywords():
 # ------------------- AI-BASED HIDDEN KEYWORDS -------------------
 
 def discover_unmined_keywords(topic):
-    """Finds hidden, high-traffic, zero-competition keywords using AI."""
+    """Tries OpenAI first. If OpenAI fails, switches to Google Gemini AI."""
     prompt = f"Generate 10 untapped, high-traffic, zero-competition keywords related to '{topic}'."
-    client = openai.OpenAI()
+    
+    # Try OpenAI first
+    try:
+        client = openai.OpenAI()
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",  # OpenAI Model
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content.split("\n")
+    
+    except openai.error.OpenAIError as e:
+        print(f"⚠️ OpenAI Failed: {e}. Switching to Google Gemini AI.")
 
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",  # ✅ Use `gpt-3.5-turbo`
-        messages=[
-            {"role": "system", "content": "You are an expert in keyword research."},
-            {"role": "user", "content": prompt}
-        ]
-    )
+        # Use Gemini as fallback
+        model = genai.GenerativeModel("gemini-pro")
+        response = model.generate_content(prompt)
 
-    return response.choices[0].message.content.split("\n")
+        return response.text.split("\n")
+
 
 
 # -------------------- AI ARTICLE GENERATION --------------------
 def generate_article(topic):
-    client = openai.OpenAI()
-
+    """Tries OpenAI first, then switches to Google Gemini AI if OpenAI fails."""
     summary_prompt = f"Generate a 3-4 sentence summary of an article about '{topic}'."
-    summary_response = client.chat.completions.create(
-        model="gpt-3.5-turbo",  # ✅ Use `gpt-3.5-turbo`
-        messages=[{"role": "user", "content": summary_prompt}]
-    )
-    summary = summary_response.choices[0].message.content
-
     content_prompt = f"Write a 1500-2000 word engaging SEO-optimized article on '{topic}'. Include a Table of Contents."
-    content_response = client.chat.completions.create(
-        model="gpt-3.5-turbo",  # ✅ Use `gpt-3.5-turbo`
-        messages=[{"role": "user", "content": content_prompt}]
-    )
-    content = content_response.choices[0].message.content
 
-    return summary, content
+    try:
+        client = openai.OpenAI()
+        
+        # Try OpenAI for summary
+        summary_response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": summary_prompt}]
+        )
+        summary = summary_response.choices[0].message.content.strip()
+
+        # Try OpenAI for full article
+        content_response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": content_prompt}]
+        )
+        content = content_response.choices[0].message.content.strip()
+
+        return summary, content
+
+    except openai.error.OpenAIError as e:
+        print(f"⚠️ OpenAI Failed: {e}. Switching to Google Gemini AI.")
+
+        model = genai.GenerativeModel("gemini-pro")
+
+        # Use Gemini AI for summary
+        summary_response = model.generate_content(summary_prompt)
+        summary = summary_response.text.strip()
+
+        # Use Gemini AI for full article
+        content_response = model.generate_content(content_prompt)
+        content = content_response.text.strip()
+
+        return summary, content
 
 
 
@@ -136,13 +166,25 @@ def fetch_and_compress_image(topic):
 
 # --------------------- AI-GENERATED HASHTAGS ---------------------
 def generate_hashtags(topic):
-    client = openai.OpenAI()
+    """Tries OpenAI first, then switches to Google Gemini AI if OpenAI fails."""
     prompt = f"Generate 5 relevant hashtags for a blog post on '{topic}'."
-    response = client.chat.completions.create(
-        model="gpt-4o",  # ✅ Replaced with a valid model
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return response.choices[0].message.content
+    
+    try:
+        client = openai.OpenAI()
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content.strip()
+    
+    except openai.error.OpenAIError as e:
+        print(f"⚠️ OpenAI Failed: {e}. Switching to Google Gemini AI.")
+        
+        model = genai.GenerativeModel("gemini-pro")
+        response = model.generate_content(prompt)
+
+        return response.text.strip()
+
 
 
 # --------------------- AUTO POST TO WORDPRESS ---------------------
