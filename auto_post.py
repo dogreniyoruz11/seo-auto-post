@@ -103,10 +103,13 @@ def generate_article(topic):
             - Bullet points and numbered lists for clarity
             - Conclusion with a strong Call-to-Action encouraging readers to explore powerful SEO tools at seotoolfusion.com
             """
-            response = openai.ChatCompletion.create(
-                model="gpt-4-turbo",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=1500
+            
+            response = openai.chat.completions.create(
+             model="gpt-4-turbo",
+             messages=[{"role": "user", "content": prompt}],
+             max_tokens=1500
+        )
+
             )
             content = response["choices"][0]["message"]["content"]
             print("✅ Article generated successfully with OpenAI.")
