@@ -2,3 +2,4 @@ requests
 openai
 pytrends
 schedule
+pillow
