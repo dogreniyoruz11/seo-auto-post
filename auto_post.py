@@ -21,7 +21,11 @@ PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")  # Pixabay API Key
 openai.api_key = OPENAI_API_KEY
 
 # ------------------- TRENDING KEYWORDS DISCOVERY -------------------
+import random
+from pytrends.request import TrendReq
+
 def fetch_trending_keywords():
+    """Fetch trending keywords from Google Trends while handling empty responses."""
     pytrends = TrendReq()
     keyword_groups = [
         ["SEO", "keyword research", "Google SEO", "ranking on Google"],
@@ -32,14 +36,29 @@ def fetch_trending_keywords():
         ["content marketing tips", "blogging tips"],
         ["eCommerce marketing", "affiliate marketing strategies"]
     ]
+    
     trending_keywords = []
+    
     for group in keyword_groups:
-        pytrends.build_payload(group, timeframe='now 7-d')
-        trends = pytrends.related_queries()
-        for kw in group:
-            if trends.get(kw) and trends[kw]['top'] is not None:
-                trending_keywords.extend(trends[kw]['top']['query'].tolist())
-    return trending_keywords[:10]
+        try:
+            pytrends.build_payload(group, timeframe='now 7-d')
+            trends = pytrends.related_queries()
+            
+            for kw in group:
+                # Check if data exists to prevent errors
+                if kw in trends and trends[kw] and trends[kw]['top'] is not None:
+                    queries = trends[kw]['top']['query'].tolist()
+                    trending_keywords.extend(queries)
+                    
+        except Exception as e:
+            print(f"⚠️ Error fetching trends for {group}: {e}")
+    
+    if not trending_keywords:
+        print("❌ No trending keywords found. Using fallback default keywords.")
+        trending_keywords = ["SEO strategies", "Google ranking tips", "YouTube video SEO", "AI marketing automation"]
+
+    return trending_keywords[:10]  # Return top 10 results
+
 
 # ------------------- AI-BASED HIDDEN KEYWORDS -------------------
 def discover_unmined_keywords(topic):
